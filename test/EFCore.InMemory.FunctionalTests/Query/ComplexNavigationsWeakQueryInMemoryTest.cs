@@ -71,5 +71,11 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             return base.Select_subquery_single_nested_subquery2(async);
         }
+
+        [ConditionalTheory(Skip = "issue #19967")]
+        public override Task SelectMany_with_outside_reference_to_joined_table_correctly_translated_to_apply(bool async)
+        {
+            return base.SelectMany_with_outside_reference_to_joined_table_correctly_translated_to_apply(async);
+        }
     }
 }
