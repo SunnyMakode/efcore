@@ -14,6 +14,7 @@ variables:
   - name: _CosmosToken
     value: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==
   - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+    - group: DotNet-HelixApi-Access
     - group: DotNet-MSRC-Storage
     - name: _InternalRuntimeDownloadArgs
       value: /p:DotNetRuntimeSourceFeed=https://dotnetclimsrc.blob.core.windows.net/dotnet
@@ -21,7 +22,7 @@ variables:
   - ${{ if eq(variables['System.TeamProject'], 'public') }}:
     - name: _InternalRuntimeDownloadArgs
       value: ''
-    
+
   # used for post-build phases, internal builds only
   - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
     - group: DotNet-EFCore-SDLValidation-Params
@@ -41,14 +42,13 @@ stages:
     - template: eng/common/templates/jobs/jobs.yml
       parameters:
         enableMicrobuild: true
-        enablePublishBuildArtifacts: true
         enablePublishBuildAssets: true
         enablePublishUsingPipelines: ${{ variables._PublishUsingPipelines }}
-        enablePublishTestResults: true
         enableTelemetry: true
         helixRepo: dotnet/efcore
         jobs:
           - job: Windows
+            enablePublishTestResults: true
             pool:
               ${{ if eq(variables['System.TeamProject'], 'public') }}:
                 name: NetCorePublic-Pool
@@ -106,8 +106,17 @@ stages:
                   artifactName: packages
                   artifactType: Container
                   parallel: true
+              - task: PublishBuildArtifacts@1
+                displayName: Publish Logs
+                inputs:
+                  PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)'
+                  PublishLocation: Container
+                  ArtifactName: $(Agent.Os)_$(Agent.JobName)
+                continueOnError: true
+                condition: always()
 
           - job: macOS
+            enablePublishTestResults: true
             pool:
               vmImage: macOS-10.13
             steps:
@@ -123,7 +132,7 @@ stages:
                     arguments: $(Build.SourcesDirectory)/NuGet.config $Token
                   env:
                     Token: $(dn-bot-dnceng-artifact-feeds-rw)
-              - script: eng/common/cibuild.sh --configuration $(_BuildConfig) --binaryLog --prepareMachine $(_InternalRuntimeDownloadArgs)
+              - script: eng/common/cibuild.sh --configuration $(_BuildConfig) --prepareMachine $(_InternalRuntimeDownloadArgs)
                 env:
                   Test__Cosmos__DefaultConnection: $(_CosmosConnectionUrl)
                 name: Build
@@ -136,9 +145,18 @@ stages:
                   artifactName: $(Agent.Os)_$(Agent.JobName) TestResults
                   artifactType: Container
                   parallel: true
+              - task: PublishBuildArtifacts@1
+                displayName: Publish Logs
+                inputs:
+                  PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)'
+                  PublishLocation: Container
+                  ArtifactName: $(Agent.Os)_$(Agent.JobName)
+                continueOnError: true
+                condition: always()
 
           - job: Linux
             timeoutInMinutes: 120
+            enablePublishTestResults: true
             pool:
               vmImage: ubuntu-16.04
             variables:
@@ -181,6 +199,113 @@ stages:
                   artifactName: $(Agent.Os)_$(Agent.JobName) TestResults
                   artifactType: Container
                   parallel: true
+              - task: PublishBuildArtifacts@1
+                displayName: Publish Logs
+                inputs:
+                  PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)'
+                  PublishLocation: Container
+                  ArtifactName: $(Agent.Os)_$(Agent.JobName)
+                continueOnError: true
+                condition: always()
+
+          - job: Helix_Windows
+            pool:
+              ${{ if eq(variables['System.TeamProject'], 'public') }}:
+                name: NetCorePublic-Pool
+                queue: BuildPool.Windows.10.Amd64.VS2017.Open
+              ${{ if ne(variables['System.TeamProject'], 'public') }}:
+                name: NetCoreInternal-Pool
+                queue: BuildPool.Windows.10.Amd64.VS2017
+            variables:
+              - name: _HelixBuildConfig
+                value: $(_BuildConfig)
+              - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+                - name: HelixTargetQueues
+                  value: Windows.10.Amd64.Open
+                - name: Creator
+                  value: efcore
+                - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: public/dotnet/efcore/$(Build.SourceBranch)
+                - ${{ if in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: public/pr/dotnet/efcore/$(Build.SourceBranch)
+              - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+                - name: HelixTargetQueues
+                  value: Windows.10.Amd64
+                - name: HelixAccessToken
+                  value: $(HelixApiAccessToken) # Needed for internal queues
+                - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: official/dotnet/efcore/$(Build.SourceBranch)
+                - ${{ if in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: official/pr/dotnet/efcore/$(Build.SourceBranch)
+            steps:
+              - task: NuGetCommand@2
+                displayName: 'Clear NuGet caches'
+                condition: succeeded()
+                inputs:
+                  command: custom
+                  arguments: 'locals all -clear'
+              - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+                - task: PowerShell@2
+                  displayName: Setup Private Feeds Credentials
+                  inputs:
+                    filePath: $(Build.SourcesDirectory)/eng/common/SetupNugetSources.ps1
+                    arguments: -ConfigFile $(Build.SourcesDirectory)/NuGet.config -Password $Env:Token
+                  env:
+                    Token: $(dn-bot-dnceng-artifact-feeds-rw)
+              - script: restore.cmd -ci /p:configuration=$(_BuildConfig)
+                displayName: Restore packages
+              - script: .dotnet\dotnet msbuild eng\helix.proj /restore /t:Test /p:configuration=$(_BuildConfig)
+                displayName: Send job to helix
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken) # We need to set this env var to publish helix results to Azure Dev Ops
+
+          - job: Helix_Linux
+            pool:
+              vmImage: ubuntu-16.04
+            variables:
+              - name: _HelixBuildConfig
+                value: $(_BuildConfig)
+              - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+                - name: HelixTargetQueues
+                  value: Ubuntu.1804.Amd64.Open;OSX.1014.Amd64.Open
+                - name: Creator
+                  value: efcore
+                - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: public/dotnet/efcore/$(Build.SourceBranch)
+                - ${{ if in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: public/pr/dotnet/efcore/$(Build.SourceBranch)
+              - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+                - name: HelixTargetQueues
+                  value: Ubuntu.1804.Amd64;OSX.1014.Amd64
+                - name: HelixAccessToken
+                  value: $(HelixApiAccessToken) # Needed for internal queues
+                - ${{ if notIn(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: official/dotnet/efcore/$(Build.SourceBranch)
+                - ${{ if in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'PullRequest') }}:
+                  - name: _HelixSource
+                    value: official/pr/dotnet/efcore/$(Build.SourceBranch)
+            steps:
+              - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+                - task: Bash@3
+                  displayName: Setup Private Feeds Credentials
+                  inputs:
+                    filePath: $(Build.SourcesDirectory)/eng/common/SetupNugetSources.sh
+                    arguments: $(Build.SourcesDirectory)/NuGet.config $Token
+                  env:
+                    Token: $(dn-bot-dnceng-artifact-feeds-rw)
+              - script: ./restore.sh --restore -ci /p:configuration=$(_BuildConfig)
+                displayName: Restore packages
+              - script: .dotnet/dotnet msbuild eng/helix.proj /restore /t:Test /p:configuration=$(_BuildConfig)
+                displayName: Send job to helix
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken) # We need to set this env var to publish helix results to Azure Dev Ops
 
 - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng\common\templates\post-build\post-build.yml
