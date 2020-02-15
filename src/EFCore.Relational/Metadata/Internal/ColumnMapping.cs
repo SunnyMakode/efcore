@@ -24,9 +24,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
         /// </summary>
         public ColumnMapping(
             [NotNull] IProperty property,
-            [NotNull] IColumn column,
+            [NotNull] Column column,
             [NotNull] RelationalTypeMapping typeMapping,
-            [NotNull] ITableMapping tableMapping)
+            [NotNull] TableMapping tableMapping)
         {
             Property = property;
             Column = column;

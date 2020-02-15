@@ -580,15 +580,15 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
             var sourceMigrationsAnnotations = MigrationsAnnotations.For(GetRootType(source)).ToList();
             var targetMigrationsAnnotations = MigrationsAnnotations.For(GetRootType(target)).ToList();
 
-            if (source.GetComment() != target.GetComment()
+            if (source.Comment != target.Comment
                 || HasDifferences(sourceMigrationsAnnotations, targetMigrationsAnnotations))
             {
                 var alterTableOperation = new AlterTableOperation
                 {
                     Name = target.Name,
                     Schema = target.Schema,
-                    Comment = target.GetComment(),
-                    OldTable = { Comment = source.GetComment() }
+                    Comment = target.Comment,
+                    OldTable = { Comment = source.Comment }
                 };
 
                 alterTableOperation.AddAnnotations(targetMigrationsAnnotations);
@@ -601,7 +601,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                     target.Columns.Select(c => c.PropertyMappings.First().Property), diffContext)
                 .Concat(Diff(GetKeys(source), GetKeys(target), diffContext))
                 .Concat(Diff(GetIndexes(source), GetIndexes(target), diffContext))
-                .Concat(Diff(source.GetCheckConstraints(), target.GetCheckConstraints(), diffContext));
+                .Concat(Diff(source.CheckConstraints, target.CheckConstraints, diffContext));
 
             foreach (var operation in operations)
             {
@@ -630,7 +630,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
             {
                 Schema = target.Schema,
                 Name = target.Name,
-                Comment = target.GetComment()
+                Comment = target.Comment
             };
             createTableOperation.AddAnnotations(MigrationsAnnotations.For(entityType));
 
@@ -646,7 +646,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Internal
                 GetKeys(target).Where(k => !k.IsPrimaryKey()).SelectMany(k => Add(k, diffContext))
                     .Cast<AddUniqueConstraintOperation>());
             createTableOperation.CheckConstraints.AddRange(
-                target.GetCheckConstraints().SelectMany(c => Add(c, diffContext))
+                target.CheckConstraints.SelectMany(c => Add(c, diffContext))
                     .Cast<CreateCheckConstraintOperation>());
 
             foreach (var targetMapping in target.EntityTypeMappings)

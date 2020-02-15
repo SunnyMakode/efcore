@@ -243,7 +243,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .HasAnnotation(""SqlServer:ValueGenerationStrategy"", SqlServerValueGenerationStrategy.IdentityColumn);"),
                 o =>
                 {
-                    Assert.Equal(7, o.GetAnnotations().Count());
+                    Assert.Equal(6, o.GetAnnotations().Count());
                     Assert.Equal("AnnotationValue", o["AnnotationName"]);
                 });
         }
@@ -266,7 +266,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .HasAnnotation(""SqlServer:ValueGenerationStrategy"", SqlServerValueGenerationStrategy.IdentityColumn);"),
                 o =>
                 {
-                    Assert.Equal(5, o.GetAnnotations().Count());
+                    Assert.Equal(4, o.GetAnnotations().Count());
                     Assert.Equal("AnnotationValue", o["AnnotationName"]);
                     Assert.Equal("DefaultSchema", o[RelationalAnnotationNames.DefaultSchema]);
                 });
@@ -352,7 +352,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations
                 .HasAnnotation(""SqlServer:ValueGenerationStrategy"", SqlServerValueGenerationStrategy.IdentityColumn);"),
                 o =>
                 {
-                    Assert.Equal(4, o.GetAnnotations().Count());
+                    Assert.Equal(3, o.GetAnnotations().Count());
                 });
         }
 

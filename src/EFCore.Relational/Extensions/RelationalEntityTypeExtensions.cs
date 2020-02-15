@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -146,12 +147,28 @@ namespace Microsoft.EntityFrameworkCore
                 ?.GetConfigurationSource();
 
         /// <summary>
-        ///     Returns the name of the table to which the entity type is mapped.
+        ///     Returns the tables to which the entity type is mapped.
         /// </summary>
         /// <param name="entityType"> The entity type to get the table name for. </param>
         /// <returns> The name of the table to which the entity type is mapped. </returns>
         public static IEnumerable<ITableMapping> GetTableMappings([NotNull] this IEntityType entityType) =>
             (IEnumerable<ITableMapping>)entityType[RelationalAnnotationNames.TableMappings];
+
+        /// <summary>
+        ///     Returns the views or tables to which the entity type is mapped.
+        /// </summary>
+        /// <param name="entityType"> The entity type to get the table name for. </param>
+        /// <returns> The name of the table to which the entity type is mapped. </returns>
+        public static IEnumerable<ITableMappingBase> GetViewOrTableMappings([NotNull] this IEntityType entityType) =>
+            (IEnumerable<ITableMappingBase>)GetViewMappings(entityType) ?? GetTableMappings(entityType);
+
+        /// <summary>
+        ///     Returns the views to which the entity type is mapped.
+        /// </summary>
+        /// <param name="entityType"> The entity type to get the table name for. </param>
+        /// <returns> The name of the table to which the entity type is mapped. </returns>
+        public static IEnumerable<IViewMapping> GetViewMappings([NotNull] this IEntityType entityType) =>
+            (IEnumerable<IViewMapping>)entityType[RelationalAnnotationNames.ViewMappings];
 
         /// <summary>
         ///     Returns the name of the view to which the entity type is mapped.

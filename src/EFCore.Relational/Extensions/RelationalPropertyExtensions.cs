@@ -175,12 +175,28 @@ namespace Microsoft.EntityFrameworkCore
             => property.FindAnnotation(RelationalAnnotationNames.ColumnType)?.GetConfigurationSource();
 
         /// <summary>
-        ///     Returns the columns to which the property is mapped.
+        ///     Returns the table columns to which the property is mapped.
         /// </summary>
         /// <param name="property"> The property. </param>
-        /// <returns> The name of the table to which the entity type is mapped. </returns>
+        /// <returns> The table columns to which the property is mapped. </returns>
         public static IEnumerable<IColumnMapping> GetTableColumnMappings([NotNull] this IProperty property) =>
             (IEnumerable<IColumnMapping>)property[RelationalAnnotationNames.TableColumnMappings];
+
+        /// <summary>
+        ///     Returns the view or table columns to which the property is mapped.
+        /// </summary>
+        /// <param name="property"> The property. </param>
+        /// <returns> The view or table columns to which the property is mapped. </returns>
+        public static IEnumerable<IColumnMappingBase> GetViewOrTableColumnMappings([NotNull] this IProperty property) =>
+            (IEnumerable<IColumnMappingBase>)GetViewColumnMappings(property) ?? GetTableColumnMappings(property);
+
+        /// <summary>
+        ///     Returns the view columns to which the property is mapped.
+        /// </summary>
+        /// <param name="property"> The property. </param>
+        /// <returns> The view columns to which the property is mapped. </returns>
+        public static IEnumerable<IViewColumnMapping> GetViewColumnMappings([NotNull] this IProperty property) =>
+            (IEnumerable<IViewColumnMapping>)property[RelationalAnnotationNames.ViewColumnMappings];
 
         /// <summary>
         ///     Returns the SQL expression that is used as the default value for the column this property is mapped to.
